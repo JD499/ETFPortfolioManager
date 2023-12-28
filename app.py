@@ -1,20 +1,20 @@
+import pandas as pd
 from flask import Flask
 
 app = Flask(__name__)
 
 
 @app.route('/')
-def hello_world():  # put application's code here
+def hello_world():
     return 'Hello World!'
 
-import pandas as pd
 
 def add_etf_holdings_from_csv(etf_holdings_dict, file_path):
-    # Read the file to find the ETF name
+    cusip = file_path.split('.')[0]
+
+    # Read the file
     with open(file_path, 'r') as file:
         lines = file.readlines()
-        etf_name_line = [line for line in lines if line.startswith('Fund Name')][0]
-        etf_name = etf_name_line.split(',')[1].strip()
 
     # Find the start of the data
     start_of_data = None
@@ -33,20 +33,19 @@ def add_etf_holdings_from_csv(etf_holdings_dict, file_path):
     # Create the dictionary for this ETF
     etf_holdings = {}
     for _, row in holdings_df.iterrows():
-        stock_name = row['ISSUER']
+        stock_name = row['CUSIP']
         stock_weight = row['WEIGHT']
         etf_holdings[stock_name] = stock_weight
 
-    # Add the dictionary to the existing holdings
-    etf_holdings_dict[etf_name] = etf_holdings
+    etf_holdings_dict[cusip] = etf_holdings
+
 
 # Usage example
 etf_holdings_dict = {}  # Initialize an empty dictionary
-add_etf_holdings_from_csv(etf_holdings_dict, 'AVRE.csv')
-add_etf_holdings_from_csv(etf_holdings_dict, 'AVUS.csv')
-add_etf_holdings_from_csv(etf_holdings_dict, 'AVUV.csv')
+add_etf_holdings_from_csv(etf_holdings_dict, '025072356.csv')
+add_etf_holdings_from_csv(etf_holdings_dict, '025072885.csv')
+add_etf_holdings_from_csv(etf_holdings_dict, '025072877.csv')
 
-print(etf_holdings_dict)
 
 def calculate_etf_portfolio(etf_info, stock_weights):
     """
@@ -81,27 +80,10 @@ def calculate_etf_portfolio(etf_info, stock_weights):
 
     return sorted_stock_values
 
+
 # Example usage:
-etf_info_example = {
-    'Avantis Real Estate ETF': {'price': 50, 'shares': 2},
-    'Avantis U.S. Equity ETF': {'price': 50, 'shares': 2},
-    'Avantis U.S. Small Cap Value ETF': {'price': 100, 'shares': 1}
-}
-
-
-
-# Call the function with the example inputs
-temp = calculate_etf_portfolio(etf_info_example, etf_holdings_dict)
-print(calculate_etf_portfolio(etf_info_example, etf_holdings_dict))
-
-
-
-
-
-
-
-
-
+etf_info_example = {'025072356': {'price': 50, 'shares': 2}, '025072885': {'price': 50, 'shares': 2},
+    '025072877': {'price': 100, 'shares': 1}}
 
 if __name__ == '__main__':
     app.run()
