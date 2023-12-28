@@ -6,8 +6,6 @@ from itsdangerous import URLSafeTimedSerializer
 from io import StringIO
 import pandas as pd
 
-
-
 app = Flask(__name__)
 CORS(app)
 
@@ -37,13 +35,15 @@ class ETFManager:
         etf_holdings = data_frame.set_index('CUSIP')['WEIGHT'].to_dict()
         return etf_holdings
 
-    def _find_start_of_data(self, lines):
+    @staticmethod
+    def _find_start_of_data(lines):
         for i, line in enumerate(lines):
             if line.startswith('ISSUER,CUSIP'):
                 return i
         raise ValueError("Data header not found in the file")
 
-    def _process_weight(self, data_frame):
+    @staticmethod
+    def _process_weight(data_frame):
         data_frame['WEIGHT'] = data_frame['WEIGHT'].str.rstrip('%')
         data_frame['WEIGHT'] = pd.to_numeric(data_frame['WEIGHT'], errors='coerce') / 100.0
 
@@ -63,7 +63,8 @@ class ETFManager:
         portfolio_value, stock_values = self._calculate_portfolio_and_stock_values(etf_data_map, session_data)
         return self._calculate_stock_percentages(portfolio_value, stock_values)
 
-    def _calculate_portfolio_and_stock_values(self, etf_data_map, session_data):
+    @staticmethod
+    def _calculate_portfolio_and_stock_values(etf_data_map, session_data):
         portfolio_value = 0
         stock_values = {}
         for etf_code, investment_details in etf_data_map.items():
@@ -75,7 +76,10 @@ class ETFManager:
                 stock_values[stock] += etf_value * weight
         return portfolio_value, stock_values
 
-    def _calculate_stock_percentages(self, portfolio_value, stock_values):
+    @staticmethod
+    def _calculate_stock_percentages(portfolio_value, stock_values):
+        if portfolio_value == 0:
+            return "Portfolio value is zero, cannot calculate percentages"
         stock_percentages = {stock: value / portfolio_value * 100 for stock, value in stock_values.items()}
         return sorted(stock_percentages.items(), key=lambda item: item[1], reverse=True)
 
@@ -85,8 +89,13 @@ etf_manager = ETFManager()
 
 @app.route('/upload-csv', methods=['POST'])
 def upload_csv():
-    file = request.files['file']
-    cusip = request.form['cusip']
+    file = request.files.get('file')
+    if file is None or file.filename == '':
+        return jsonify({"message": "No file provided"}), 400
+    cusip = request.form.get('cusip')
+    if cusip is None or len(cusip.strip()) == 0:
+        return jsonify({"message": "No cusip provided"}), 400
+    # If inputs are valid
     etf_manager.add_etf_holdings_from_csv(file, cusip)
     return jsonify({"message": "File uploaded and processed successfully"})
 
