@@ -1,14 +1,22 @@
 import os
 from flask import Flask, request, jsonify, session
 from flask.sessions import SecureCookieSessionInterface
+from flask_cors import CORS
 from itsdangerous import URLSafeTimedSerializer
 from io import StringIO
 import pandas as pd
 
+
+
 app = Flask(__name__)
+CORS(app)
 
 # Set the secret key. Keep this really secret!
 app.secret_key = os.environ.get('SECRET_KEY')
+
+# Key not set in environment scenarios.
+if not app.secret_key:
+    raise ValueError("SECRET_KEY is not set in the environment variables. Secure your app.")
 
 # Initialize session interface
 session_interface = SecureCookieSessionInterface()
