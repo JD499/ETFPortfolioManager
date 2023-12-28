@@ -1,8 +1,18 @@
+import os
+from flask import Flask, request, jsonify, session
+from flask.sessions import SecureCookieSessionInterface
+from itsdangerous import URLSafeTimedSerializer
 from io import StringIO
 import pandas as pd
-from flask import Flask, request, jsonify
 
 app = Flask(__name__)
+
+# Set the secret key. Keep this really secret!
+app.secret_key = os.environ.get('SECRET_KEY')
+
+# Initialize session interface
+session_interface = SecureCookieSessionInterface()
+session_serializer = URLSafeTimedSerializer(app.secret_key)
 
 
 class ETFManager:
@@ -29,21 +39,29 @@ class ETFManager:
         data_frame['WEIGHT'] = data_frame['WEIGHT'].str.rstrip('%')
         data_frame['WEIGHT'] = pd.to_numeric(data_frame['WEIGHT'], errors='coerce') / 100.0
 
+    def get_session_data(self):
+        session_id = session.get('id')
+        if not session_id:
+            session_id = session_serializer.dumps(dict())
+            session['id'] = session_id
+        return self.etf_holdings_dict.setdefault(session_id, {})
+
     def add_etf_holdings_from_csv(self, file, cusip):
         etf_holdings = self.process_csv(file)
-        self.etf_holdings_dict[cusip] = etf_holdings
+        self.get_session_data()[cusip] = etf_holdings
 
     def calculate_portfolio(self, etf_data_map):
-        portfolio_value, stock_values = self._calculate_portfolio_and_stock_values(etf_data_map)
+        session_data = self.get_session_data()
+        portfolio_value, stock_values = self._calculate_portfolio_and_stock_values(etf_data_map, session_data)
         return self._calculate_stock_percentages(portfolio_value, stock_values)
 
-    def _calculate_portfolio_and_stock_values(self, etf_data_map):
+    def _calculate_portfolio_and_stock_values(self, etf_data_map, session_data):
         portfolio_value = 0
         stock_values = {}
         for etf_code, investment_details in etf_data_map.items():
             etf_value = investment_details['price'] * investment_details['shares']
             portfolio_value += etf_value
-            for stock, weight in self.etf_holdings_dict[etf_code].items():
+            for stock, weight in session_data[etf_code].items():
                 if stock not in stock_values:
                     stock_values[stock] = 0
                 stock_values[stock] += etf_value * weight
