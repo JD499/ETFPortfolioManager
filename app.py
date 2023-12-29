@@ -8,6 +8,9 @@ import pandas as pd
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True  # Only use this if your site is served over HTTPS
+
 
 
 # Set the secret key. Keep this really secret!
