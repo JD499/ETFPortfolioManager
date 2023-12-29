@@ -7,7 +7,8 @@ from io import StringIO
 import pandas as pd
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True)
+
 
 # Set the secret key. Keep this really secret!
 app.secret_key = os.environ.get('SECRET_KEY')
